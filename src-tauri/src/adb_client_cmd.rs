@@ -28,7 +28,9 @@ pub fn shell(command: String) -> String {
     }
     let device_ = unsafe { device.as_mut().unwrap() };
     let mut output = Vec::new();
-    device_.shell_command(&[command.as_str()], &mut output);
+    if let Err(e) = device_.shell_command(&[command.as_str()], &mut output) {
+        return format!("Error: {}", e);
+    }
 
     return String::from_utf8(output).unwrap();
 }

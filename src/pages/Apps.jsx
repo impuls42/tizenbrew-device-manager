@@ -11,6 +11,7 @@ export default function Apps() {
     const { state } = useContext(GlobalContext);
     const [modalOpened, setModalOpened] = useState(false);
     const [installing, setInstalling] = useState(false);
+    const [resultMessage, setResultMessage] = useState(null);
     const navigate = useNavigate();
 
     if (!state.deviceClient) {
@@ -42,6 +43,9 @@ export default function Apps() {
 
     return (
         <div className="bg-white dark:bg-slate-900" style={{ height: '100vh', position: 'absolute' }} id="content">
+            <Modal opened={resultMessage !== null} setOpened={() => setResultMessage(null)} title="Result">
+                {resultMessage}
+            </Modal>
             <Modal opened={modalOpened} setOpened={setModalOpened} title="Install An App">
                 <div className="mt-4">
                     <input type="file" id="app-file" className="file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-500 file:text-violet-700 hover:file:bg-blue-700 file:text-white" accept=".wgt,.tpk" />
@@ -50,7 +54,7 @@ export default function Apps() {
                     <button className={`${installing ? 'bg-gray-800' : 'bg-blue-700 dark:bg-blue-600'} hover:bg-blue-700 text-white font-bold py-2 px-4 rounded`}
                         onClick={async () => {
                             const file = document.getElementById('app-file').files[0];
-                            if (!file) return alert('Please select a file first.');
+                            if (!file) return setResultMessage('Please select a file first.');
 
                             const reader = new FileReader();
                             reader.onload = async () => {
@@ -60,11 +64,11 @@ export default function Apps() {
                                 try {
                                     zip = new ZipReader(read);
                                 } catch (e) {
-                                    alert(`There was an error reading the file: ${e}`);
+                                    setResultMessage(`There was an error reading the file: ${e}`);
                                 }
                                 const entries = await zip.getEntries();
                                 const app = entries.find(e => e.filename === 'config.xml' || e.filename === 'tizen-manifest.xml');
-                                if (!app) return alert('The file does not contain a valid Tizen app.');
+                                if (!app) return setResultMessage('The file does not contain a valid Tizen app.');
                                 const textWriter = new TextWriter();
                                 const appInfo = await app.getData(textWriter);
                                 const parser = new DOMParser();
@@ -78,7 +82,7 @@ export default function Apps() {
                                     id = manifest.getAttribute('package');
                                 }
 
-                                if (!id) return alert('The app does not have a valid package ID.');
+                                if (!id) return setResultMessage('The app does not have a valid package ID.');
 
                                 const array = new Uint8Array(reader.result);
 
@@ -89,9 +93,9 @@ export default function Apps() {
                                     const result = await state.deviceClient?.shell(`0 vd_appinstall ${id} /home/owner/share/tmp/sdk_tools/${file.name}`);
                                     const lastLines = result.split('\n').slice(-8).join('\n');
                                     setInstalling(false);
-                                    alert(lastLines);
+                                    setResultMessage(lastLines);
                                 } catch (e) {
-                                    alert(`There was an error installing the app: ${e}`);
+                                    setResultMessage(`There was an error installing the app: ${e}`);
                                 }
                             }
 
@@ -124,21 +128,26 @@ export default function Apps() {
                             <div className="flex space-x-2">
                                 <button className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                                     onClick={async () => {
-                                        alert(await state.deviceClient?.shell(`0 was_execute ${app['app_id']}`));
+                                        setResultMessage(await state.deviceClient?.shell(`0 was_execute ${app['app_id']}`));
                                     }}>
                                     <PlayIcon width="1.5rem" />
                                 </button>
                                 {Number(app['app_index']) >= 300 ?
                                     <button className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                                         onClick={async () => {
-                                            alert(await state.deviceClient?.shell(`0 debug ${app['app_tizen_id']} 0`));
+                                            try {
+                                                const res = await state.deviceClient?.shell(`0 debug ${app['app_tizen_id']}`);
+                                                setResultMessage(res || '(empty response)');
+                                            } catch (e) {
+                                                setResultMessage(`Error: ${e}`);
+                                            }
                                         }}>
                                         <CodeBracketSquareIcon width="1.5rem" />
                                     </button>
                                     : null}
                                 <button className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                                     onClick={async () => {
-                                        alert(await state.deviceClient?.shell(`0 vd_appuninstall ${app['app_id']}`));
+                                        setResultMessage(await state.deviceClient?.shell(`0 vd_appuninstall ${app['app_id']}`));
                                     }}>
                                     <TrashIcon width="1.5rem" />
                                 </button>

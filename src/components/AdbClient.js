@@ -24,6 +24,10 @@ class AdbClient {
         return await invoke('shell', { command });
     }
 
+    async runDaemonCommand(command) {
+        return await invoke('run_daemon_command', { command });
+    }
+
     async push(fileData, destinationPath) {
         return await invoke('push', { fileData, destinationPath });
     }
